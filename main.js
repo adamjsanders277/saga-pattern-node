@@ -1,49 +1,84 @@
 var co = require('co');
 const Promise = require('bluebird')
 
+// Test code ///
+let counter = 0;
+let interval;
+const numberOfOperations = 25;
+const listOfArguments = [];
+const listOfDelays = [];
 
-co(function *(){
+for (let i = 0; i < numberOfOperations; i++) {
+  listOfArguments.push(i);
+  listOfDelays.push(Math.ceil(Math.random() * 9) * 1000);
+}
 
+const asyncOperation = index => {
+  counter++;
+  return new Promise(resolve =>
+    setTimeout(() => {
+      console.log('Operation performed:', index);
+      counter--;
+      resolve(index);
+    }, listOfDelays[index]))
+};
 
-}).catch(
-  console.log("error")
-);
+/////
 
+async function runConcurrentLambda() {
+  const concurrencyLimit = 5;
+  const depth = 5; // TO DO - Developer - Fix depth in event of infinite recursion
 
-/*
-module.exports.handler = co.wrap(function* (event, context, callback) {
-  const {id, date} = event.queryStringParameters
+  const argsCopy = [].concat(listOfArguments.map((val, ind) => ({ val, ind })));
+  const results = {};
+  const promises = new Array(concurrencyLimit).fill(Promise.resolve());
 
-  const flight = {
-    FunctionName: "mediocre-saga-sample-dev-get-flight", 
-    InvocationType: "RequestResponse", 
-    Payload: JSON.stringify({"id": id})
+  function nextLambda(p) {
+    if (argsCopy.length) {
+      const arg = argsCopy.shift();
+      return p.then(() => {
+        try {
+          const operationPromise = asyncOperation(arg.val).then(r => { 
+
+            const result = await dynamoDbLib.call("get", params);
+            results.body = addResultToResultObject(result.Item, results.body)
+            if(result.Item) {
+              results["statuses"][params.TableName] = success(result.Item);
+
+              add result to full json
+
+              // example 
+              // results.body = { servingLocationUUID : 1 }
+              // if success get back result.Item = { id : 1, name: "hello" }
+                  // return results.body = { servingLocation: { id: 1, name: "hello"}}
+              // else return results.body
+
+              results["body"] = 
+              return nextLambda(operationPromise);
+            } else {
+              result["statuses"][params.TableName] = failure({ status: false, error: "Item not found." });
+            }
+          
+          });
+        } catch(e) {
+          result["statuses"][params.TableName] = failure({ status: false, error: str(e)  })
+        }
+      });
+    }
+    return p;
   }
 
-  const forecast = {
-    FunctionName: "mediocre-saga-sample-dev-get-forecast", 
-    InvocationType: "RequestResponse", 
-    Payload: JSON.stringify({"date": date})
-  }
+  await Promise.all(promises.map(chainNext));
+  console.log(result)
+  return result;
+}
 
-  console.log('exec lambdas')
-
-  const departure = yield Promise.all([
-      lambda.invoke(forecast).promise().then(res => res.Payload),
-      lambda.invoke(flight).promise().then(res => res.Payload)
-    ])
-    .then(res => {
-      return {
-        forecast: JSON.parse(res[0]).body,
-        flight: JSON.parse(res[1]).body,
-      }
-    })
-
-  console.log('exec lambdas completed')
-
-  callback(null, {
-    statusCode: 200,
-    body: JSON.stringify({"departure": departure})
-  })
-
-})*/
+function addResultToResultObject(result, resultObject) {
+  // example 
+              // results.body = { servingLocationUUID : 1 }
+              // if success get back result.Item = { id : 1, name: "hello" }
+                  // return results.body = { servingLocation: { id: 1, name: "hello"}}
+              // else return results.body
+  if()
+  
+}
