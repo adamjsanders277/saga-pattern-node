@@ -16,31 +16,37 @@ const asyncInvoke = (name, testId) => {
   return new Promise((resolve, reject) => {
     //const result = await dynamoDbLib.call("get", params);
     resolve(testCall(name, testId));
-    setTimeout(() => reject(new Error("Whoops!")), 10000);
+    setTimeout(() => reject(new Error("Call reached timeout")), 6000);
   })
 };
 
 /////
 
-async function runConcurrentLambda() {
+async function runConcurrentLambda(params) {
   const concurrencyLimit = 5;
   const depth = 5; // TO DO - Developer - Fix depth in event of infinite recursion
 
-  const argsCopy = ["1", "2"]
+  const paramsCopy = [ {id: "1", TableName: "house"}, {id: "2", TableName: "house2" } ]
   const results = {statuses: {}};
   const promises = new Array(concurrencyLimit).fill(Promise.resolve());
-
-  const params = { TableName: "house" }
+  const currentDepth = 0
 
   function nextLambda(p) {
-    if (argsCopy.length) {
-      const arg = argsCopy.shift();
+    if (paramsCopy.length) {
+      const params = paramsCopy.shift();
       return p.then(() => {
         try {
-          const operationPromise = asyncInvoke("", arg).then(result => { 
-            results.body = addResultToResultObject(params.TableName, result.Item, arg, results.body)
+          const operationPromise = asyncInvoke("", params.id).then(result => { 
+            results.body = addResultToResultObject(params.TableName, result.Item, params.id, results.body)
             if(result.Item) {
               results["statuses"][params.TableName] = success(result.Item);
+              /*
+              if(currentDepth >= depth) {
+                results["statuses"]["other"] = failure({ status: false, error: "Max depth exceeded, increase depth size at own caution" });
+                return results;
+              }
+              currentDepth++;
+              */
               return nextLambda(operationPromise);
             } else {
               results["statuses"][params.TableName] = failure({ status: false, error: "Item not found." });
@@ -48,8 +54,8 @@ async function runConcurrentLambda() {
           }).catch(error => {
             results["statuses"][params.TableName] = failure({ status: false, error: String(error)  })
           });
-        } catch(e) {
-          results["statuses"][params.TableName] = failure({ status: false, error: String(e) })
+        } catch(error) {
+          results["statuses"][params.TableName] = failure({ status: false, error: String(error) })
         }
       });
     }
@@ -64,11 +70,10 @@ function addResultToResultObject(name, result, idName, resultObject) {
   if(!resultObject) {
     return result
   }
-  if(result) {
-    resultObject[name] = result
-  } else {
+  if(!result) {
     result = { "id": resultObject[idName] }
   }
+  resultObject[name] = result
   delete resultObject[idName]
   return resultObject
 }
@@ -85,8 +90,8 @@ function testCall(type, params) {
   else if(params == "2") {
     return ({
       Item : {
-        house: "hello",
-        stevenId: "1"
+        house2: "hello2",
+        stevenId2: "2"
       }
     })
   }
@@ -112,4 +117,4 @@ function buildResponse(statusCode, body) {
   };
 }
 
-runConcurrentLambda()
+runConcurrentLambda(["1", "2"])
